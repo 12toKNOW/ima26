@@ -1,0 +1,115 @@
+<h2 class="sr-only">Interactive explorer comparing dollar amounts from one million to thirty-eight trillion using counting time, bill-stack height, spend-down duration, and interest earned, with a drawn-to-scale bar against one trillion dollars.</h2>
+<style>
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.pz{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 1.25rem}
+.pz button.on{border-color:#BA7517;box-shadow:0 0 0 1px #BA7517 inset}
+.bignum{font-family:var(--font-serif);font-size:30px;font-weight:500;color:#BA7517}
+.cardlab{font-size:13px;color:#9FB3D1;margin:0 0 6px}
+.cardval{font-family:var(--font-serif);font-size:23px;font-weight:500;color:#FAC775;margin:0}
+.cardsub{font-size:12px;color:#7E91B4;margin:6px 0 0;line-height:1.5}
+.ncard{background:#14233D;border-radius:var(--border-radius-lg);padding:1rem 1.1rem}
+@media (prefers-color-scheme: dark){.bignum{color:#FAC775}}
+</style>
+
+<div class="pz">
+  <button onclick="setAmt(1e6,this)">$1 million</button>
+  <button onclick="setAmt(1e9,this)">$1 billion</button>
+  <button onclick="setAmt(1e12,this)" id="pT">$1 trillion</button>
+  <button onclick="setAmt(7e12,this)">US budget (~$7T)</button>
+  <button onclick="setAmt(38e12,this)">US debt (~$38T)</button>
+</div>
+
+<div style="display:flex;align-items:center;gap:12px;margin:0 0 1rem">
+  <span style="font-size:14px;color:var(--color-text-secondary);min-width:56px">Amount</span>
+  <input type="range" id="lg" min="6" max="13.6" step="0.01" value="12" style="flex:1" oninput="update(Math.pow(10,parseFloat(this.value)))">
+</div>
+
+<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:0 0 1.5rem">
+  <span class="bignum" id="big">$1 trillion</span>
+  <span style="font-size:13px;color:var(--color-text-tertiary)" id="exact">$1,000,000,000,000</span>
+</div>
+
+<p style="font-size:13px;color:var(--color-text-secondary);margin:0 0 8px">Drawn to scale</p>
+<div style="display:grid;grid-template-columns:110px minmax(0,1fr);gap:8px 12px;align-items:center;margin:0 0 6px">
+  <span style="font-size:12px;color:var(--color-text-secondary)" id="refLab">$1 trillion</span>
+  <div style="background:rgba(127,144,176,0.16);border-radius:4px;height:20px"><div id="refBar" style="background:#1B355E;height:20px;border-radius:4px;width:100%"></div></div>
+  <span style="font-size:12px;color:var(--color-text-secondary)" id="amtLab">Your amount</span>
+  <div style="background:rgba(127,144,176,0.16);border-radius:4px;height:20px"><div id="amtBar" style="background:#EF9F27;height:20px;border-radius:4px;width:100%"></div></div>
+</div>
+<p style="font-size:12px;color:var(--color-text-tertiary);margin:0 0 1.5rem;min-height:18px" id="scaleNote"></p>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin:0 0 1.5rem">
+  <div class="ncard">
+    <p class="cardlab">Counting it at $1 per second</p>
+    <p class="cardval" id="cv1">—</p>
+    <p class="cardsub" id="cs1"></p>
+  </div>
+  <div class="ncard">
+    <p class="cardlab">Stacked in $100 bills</p>
+    <p class="cardval" id="cv2">—</p>
+    <p class="cardsub" id="cs2"></p>
+  </div>
+  <div class="ncard">
+    <p class="cardlab">Spending $1 million per day</p>
+    <p class="cardval" id="cv3">—</p>
+    <p class="cardsub" id="cs3"></p>
+  </div>
+  <div class="ncard">
+    <p class="cardlab">Interest at 5% APY</p>
+    <p class="cardval" id="cv4">—</p>
+    <p class="cardsub" id="cs4"></p>
+  </div>
+</div>
+
+<button onclick="sendPrompt('Make a static slide version of this trillion-dollar scale explorer for my IMA deck in the navy and amber palette')">Turn this into an IMA slide ↗</button>
+
+<script>
+const SY=31557600,BI=0.0043;
+function cf(x,d){return x.toLocaleString(undefined,{maximumFractionDigits:d})}
+function f$(v){if(v>=1e12)return '$'+cf(v/1e12,2)+' trillion';if(v>=1e9)return '$'+cf(v/1e9,2)+' billion';if(v>=1e6)return '$'+cf(v/1e6,2)+' million';return '$'+cf(v,0)}
+function setAmt(v,btn){document.getElementById('lg').value=Math.log10(v);update(v);}
+function update(a){
+ const m=Math.floor(Math.log10(a));let amt=Math.round(a/Math.pow(10,m-2))*Math.pow(10,m-2);
+ document.getElementById('big').textContent=f$(amt);
+ document.getElementById('exact').textContent='$'+cf(Math.round(amt),0);
+ document.querySelectorAll('.pz button').forEach(b=>b.classList.remove('on'));
+ const presets={1e6:0,1e9:1,1e12:2,7e12:3,38e12:4};
+ Object.keys(presets).forEach(k=>{if(Math.abs(amt-Number(k))/Number(k)<0.01)document.querySelectorAll('.pz button')[presets[k]].classList.add('on')});
+ let c1,s1;const s=amt;
+ if(s<86400){c1=cf(s/3600,1)+' hours';s1='no breaks, no sleep'}
+ else if(s<SY){c1=cf(s/86400,1)+' days';s1='counting nonstop, around the clock'}
+ else{const y=s/SY;c1=(y<10?cf(y,1):cf(Math.round(y),0))+' years';s1='start today, finish around the year '+cf(Math.round(2026+y),0)}
+ document.getElementById('cv1').textContent=c1;document.getElementById('cs1').textContent=s1;
+ const ft=(amt/100)*BI/12,mi=ft/5280;let c2,s2;
+ c2=mi>=1?cf(mi>=10?Math.round(mi):mi,1)+' miles tall':cf(Math.round(ft),0)+' feet tall';
+ if(ft<6)s2='somewhere between desk height and head height';
+ else if(ft<555)s2='still shorter than the Washington Monument (555 ft)';
+ else if(ft<2717)s2='approaching Burj Khalifa territory (2,717 ft)';
+ else if(mi<6.6)s2='taller than any building, climbing toward cruising altitude';
+ else if(mi<62)s2='above airliner cruising altitude (6.6 mi)';
+ else if(mi<250)s2='past the Kármán line — officially in space';
+ else if(mi<1400)s2='past the International Space Station (~250 mi up)';
+ else s2='deep into satellite orbit territory';
+ document.getElementById('cv2').textContent=c2;document.getElementById('cs2').textContent=s2;
+ const d=amt/1e6;let c3,s3;
+ if(d<1){c3='gone today';s3='spent before dinner'}
+ else if(d<365){c3=cf(Math.round(d),0)+' days';s3='back to budgeting by '+(d<32?'next month':'next year')}
+ else{const y2=d/365.25;c3=(y2<10?cf(y2,1):cf(Math.round(y2),0))+' years';const st=2026-y2;
+  s3=st>=1?'you would have started spending in the year '+cf(Math.round(st),0):'you would have started spending around '+cf(Math.round(1-st),0)+' BC'}
+ document.getElementById('cv3').textContent=c3;document.getElementById('cs3').textContent=s3;
+ const ips=amt*0.05/SY;
+ document.getElementById('cv4').textContent='$'+(ips<100?cf(ips,2):cf(Math.round(ips),0))+' per second';
+ document.getElementById('cs4').textContent='about $'+cf(Math.round(amt*0.05/365.25),0)+' of interest per day';
+ const ref=1e12;let pct,full;
+ if(amt<=ref){document.getElementById('refLab').textContent='$1 trillion';document.getElementById('amtLab').textContent='Your amount';
+  document.getElementById('refBar').style.width='100%';pct=amt/ref*100;full='amt'}
+ else{document.getElementById('refLab').textContent='Your amount';document.getElementById('amtLab').textContent='$1 trillion';
+  document.getElementById('refBar').style.width='100%';pct=ref/amt*100;full='amt'}
+ const bar=document.getElementById('amtBar');bar.style.width=Math.max(pct,0.18)+'%';
+ const px=pct/100*560;const note=document.getElementById('scaleNote');
+ if(px<0.75)note.textContent='The smaller bar is thinner than one pixel — drawn as a hairline so you can find it at all.';
+ else if(px<6)note.textContent='That sliver on the second bar is real — that is the whole comparison.';
+ else note.textContent='';
+}
+update(1e12);
+</script>
